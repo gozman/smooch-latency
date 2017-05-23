@@ -12,6 +12,7 @@
     "body-parser": "^1.17.2",
     "dotenv": "^4.0.0",
     "express": "^4.15.3",
+    "guid": "0.0.12",
     "smooch-core": "^4.1.0"
   }
 }
