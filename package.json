@@ -1,0 +1,17 @@
+{
+  "name": "smooch-latency",
+  "version": "1.0.0",
+  "description": "A simple tool to test latency of smooch webhooks",
+  "main": "smooch-latency.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Mike Gozzo <mike@smooch.io>",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.17.2",
+    "dotenv": "^4.0.0",
+    "express": "^4.15.3",
+    "smooch-core": "^4.1.0"
+  }
+}
