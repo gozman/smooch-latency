@@ -25,15 +25,17 @@ function sendMessage() {
 app.use(bodyParser.json());
 
 app.post('/hook', function (req, res) {
-  if(req.body.appUser._id == appUserId) {
+  if(req.body.appUser._id == appUserId) && req.body.trigger == "message:appUser") {
     var ts = Date.now();
     var idx = req.body.messages[0].text;
     var delta = ts - queue[idx];
     console.log("Received message " + idx + " - Webhook Latency: " + delta + "ms");
 
     setTimeout(sendMessage, 1000);
+  } else if (req.body.trigger == "message:appUser") {
+    console.log("INFO - Ignoring a received a webhook for user " + req.body.appUser._id + ", but we're tracking " + appUserId);
   } else {
-    console.log("INFO - Received a webhook for user " + req.body.appUser._id + ", but we're tracking " + appUserId);
+    console.log("INFO - Ignoring a received a webhook triggered on " + req.body.trigger);
   }
 
   res.sendStatus(200);
