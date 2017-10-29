@@ -93,8 +93,8 @@ app.post('/hook', function(req, res) {
   res.sendStatus(200);
 })
 
-app.listen(3000, function() {
-  console.log('Latency tester listening on port 3000!')
+app.listen(process.env.LATENCY_PORT, function() {
+  console.log('Latency tester listening on port ' + process.env.LATENCY_PORT);
 })
 
 var smooch = new smoochCore({
@@ -104,6 +104,11 @@ var smooch = new smoochCore({
 });
 
 var deviceId = Guid.raw();
+
+//Kill process if we haven't done so in 5 minutes - we're basically down
+setTimeout(function() {
+  process.exit();
+}, 5*60*1000);
 
 //Initialize the device
 smooch.appUsers.init({
