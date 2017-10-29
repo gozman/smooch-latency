@@ -3,6 +3,7 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const Guid = require('guid');
+const Cachet = require('cachet-node').Cachet;
 
 require('dotenv').config()
 
@@ -11,25 +12,70 @@ var counter = 0;
 var appUserId = '';
 
 function sendMessage() {
-  var obj = {
-    start: Date.now()
+  if (process.env.MAX_RETRIES && counter >= process.env.MAX_RETRIES) {
+    var accum = 0;
+
+    for (var i = 0; i < queue.length; i++) {
+      accum += queue[i].delta;
+    }
+
+    var avg = accum / queue.length;
+
+    console.log("-------------------------------------------------------------------------------\n");
+    console.log(" Number of messages sent: " + queue.length);
+    console.log(" Average latency: " + avg + "ms\n");
+    console.log("-------------------------------------------------------------------------------\n");
+
+    if (process.env.CACHET_TOKEN) {
+      const cachet = new Cachet({
+        domain: process.env.CACHET_URL,
+        token: {
+          value: process.env.CACHET_TOKEN,
+          headerOrQueryName: 'X-Cachet-Token'
+        }
+      });
+
+      var ts = Math.round((new Date()).getTime() / 1000);
+
+      cachet.createMetricPointById({
+          metric: 1,
+          body: {
+            value: avg,
+            timestamp: ts
+          }
+        }).then(response => {
+          console.log(response.body);
+          process.exit();
+        })
+        .catch(err => {
+          console.log(err);
+          process.exit();
+        });
+    } else {
+      process.exit();
+    }
+  } else {
+
+    var obj = {
+      start: Date.now()
+    }
+
+    queue[counter] = obj;
+
+    smooch.appUsers.sendMessage(appUserId, {
+      text: counter.toString(),
+      role: 'appUser',
+      type: 'text'
+    });
+
+    counter++
   }
-
-  queue[counter] = obj;
-
-  smooch.appUsers.sendMessage(appUserId, {
-    text: counter.toString(),
-    role: 'appUser',
-    type: 'text'
-  });
-
-  counter++
 }
 
 app.use(bodyParser.json());
 
-app.post('/hook', function (req, res) {
-  if(req.body.appUser._id == appUserId && req.body.trigger == "message:appUser") {
+app.post('/hook', function(req, res) {
+  if (req.body.appUser._id == appUserId && req.body.trigger == "message:appUser") {
     var idx = req.body.messages[0].text;
     var obj = queue[idx];
     obj.end = Date.now();
@@ -47,47 +93,47 @@ app.post('/hook', function (req, res) {
   res.sendStatus(200);
 })
 
-app.listen(3000, function () {
+app.listen(3000, function() {
   console.log('Latency tester listening on port 3000!')
 })
 
 var smooch = new smoochCore({
-    keyId: process.env.SMOOCH_KEY,
-    secret: process.env.SMOOCH_SECRET,
-    scope: 'app'
+  keyId: process.env.SMOOCH_KEY,
+  secret: process.env.SMOOCH_SECRET,
+  scope: 'app'
 });
 
 var deviceId = Guid.raw();
 
 //Initialize the device
 smooch.appUsers.init({
-    device: {
-        id: deviceId,
-        platform: 'other',
-        appVersion: '1.0'
-    }
+  device: {
+    id: deviceId,
+    platform: 'other',
+    appVersion: '1.0'
+  }
 }).then((response) => {
-    appUserId = response.appUser._id;
-    console.log(" Testing latency using AppUser with ID: " + appUserId + "\n");
-    console.log("-------------------------------------------------------------------------------");
-    sendMessage();
+  appUserId = response.appUser._id;
+  console.log(" Testing latency using AppUser with ID: " + appUserId + "\n");
+  console.log("-------------------------------------------------------------------------------");
+  sendMessage();
 });
 
 process.on('SIGINT', function() {
-    console.log("\n Caught interrupt signal \n");
+  console.log("\n Caught interrupt signal \n");
 
-    var accum = 0;
+  var accum = 0;
 
-    for(var i=0; i<queue.length; i++) {
-      accum += queue[i].delta;
-    }
+  for (var i = 0; i < queue.length; i++) {
+    accum += queue[i].delta;
+  }
 
-    if(queue.length) {
-      console.log("-------------------------------------------------------------------------------\n");
-      console.log(" Number of messages sent: " + queue.length);
-      console.log(" Average latency: " + accum/queue.length + "ms\n");
-      console.log("-------------------------------------------------------------------------------\n");
-    }
+  if (queue.length) {
+    console.log("-------------------------------------------------------------------------------\n");
+    console.log(" Number of messages sent: " + queue.length);
+    console.log(" Average latency: " + accum / queue.length + "ms\n");
+    console.log("-------------------------------------------------------------------------------\n");
+  }
 
-    process.exit();
+  process.exit();
 });
